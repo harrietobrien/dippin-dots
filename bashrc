@@ -5,7 +5,6 @@
 
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
-alias wp='bhb84442'
 
 path_electron='/usr/lib/electron33/electron'
 path_onenote='/usr/local/bin/onenote-2024.10.121'
