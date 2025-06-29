@@ -1,0 +1,75 @@
+#!/bin/bash
+# harrietobrien
+
+usb_device() {
+    # udevadm queries device metadata managed by udev
+    if udevadm info -q property -n "/dev/$1" 2>/dev/null | grep -q '^ID_BUS=usb'; 
+    then
+        return 0
+    # gets the transport type of the block device
+    elif lsblk -no TRAN "/dev/$1" 2>/dev/null | grep -q '^usb$'; 
+    then
+        return 0
+    else
+        return 1 # assume usb
+    fi
+}
+
+retrieve_disks() {
+    local disks=()
+    for device in /sys/block/sd*; do
+        devname=$(basename "$device")
+        # exclude loop, rom, zram0 (swap)
+        if ! usb_device "$devname"; 
+        then
+            continue
+        elif [[ -e "$devname" ]]; 
+        then
+            fstype=$(echo "$line" | awk '{print $5}')
+            if [[ "$fstype" == "iso9660" ]] || [[ "$fstype" == "udf" ]];
+            then
+                echo "ISO detected (filesystem: $fstype)"
+                # check for ISO signature in first few bytes
+                if sudo dd if="$devname" bs=1 skip=32769 count=5 2>/dev/null | grep -q "CD001" 2>/dev/null; 
+                then
+                    echo "ISO signature detected"
+             elif sudo dd if="$devname" bs=1 skip=34817 count=5 2>/dev/null | grep -q "CD001" 2>/dev/null;
+                then
+                    echo "ISO + EVD  detected"
+                else
+                    continue
+                fi
+            fi
+        fi
+        disks+=("/dev/$devname")
+    done
+    echo "${disks[@]}"
+}
+
+select_disk() {
+    # store space-separated output in array 
+    read -r -a disk_list <<< "$(retrieve_disks)"
+    echo "Available USB disks:"
+    for i in "${!disk_list[@]}"; do
+        printf "%d) %s\n" "$((i+1))" "${disk_list[$i]}"
+    done
+    # prompt user for a disk selection
+    read -p "Select a disk by number: " choice
+    # ensure user responds with a valid selection
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] &&
+        [ "$choice" -le "${#disk_list[@]}" ]; then
+        selected_disk="${disk_list[$((choice-1))]}"
+        echo "You selected: $selected_disk"
+        read -p "Enter path to input .iso file:" iso_path
+        echo "Copying iso image to selected drive . . ."
+        sudo dd if=$iso_path of=$selected_disk bs=64K oflag=sync status=progress
+    else
+        echo "Invalid selection."
+        exit 1
+    fi
+}
+
+select_disk
+
+
+
