@@ -1,0 +1,34 @@
+runtime! archlinux.vim
+
+if has('filetype')
+  filetype indent plugin on
+endif
+
+set number
+set cursorline
+set cursorcolumn
+set incsearch
+set history=1000
+
+if has('syntax')
+  syntax on
+endif
+
+if has('mouse')
+  set mouse=a
+endif
+
+set wildmenu
+set showcmd
+set hlsearch
+
+set shiftwidth=4
+set softtabstop=4
+set expandtab
+
+set background=dark
+colorscheme koehler
+set guifont=IBM\ 3270:h15
+
+autocmd bufwritepost .vimrc source $MYVIMRC 
+
