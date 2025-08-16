@@ -1,0 +1,72 @@
+#!/usr/bin/ bash
+# harriet@archlinux ✿
+# Options:
+#   -n  dry-run (show what would happen; w/o install or clean)
+#   -k  keep artifacts (install only; no clean)
+#   -y  auto-confirm pacman (default)
+#   -N  no auto-confirm (require interactive pacman)
+
+set -euo pipefail
+shopt -s nullglob
+
+DRYRUN=0
+CLEAN=1
+PACMAN_OPTS=(-U --needed --noconfirm)
+
+while getopts ":nkyN" opt; do
+  case "$opt" in
+    n) DRYRUN=1 ;;
+    k) CLEAN=0 ;;
+    y) PACMAN_OPTS=(-U --needed --noconfirm) ;;
+    N) PACMAN_OPTS=(-U --needed) ;; # interactive
+    *) echo "Usage: $0 [-n] [-k] [-y|-N]"; exit 2 ;;
+  esac
+done
+
+# collect all built packages
+pkgs=( ./*.pkg.tar.zst )
+if (( ${#pkgs[@]} == 0 )); then
+  echo "No .pkg.tar.zst files found in current directory."
+  exit 1
+fi
+
+echo " Packages found:"
+for p in "${pkgs[@]}"; do echo "  - $p"; done
+
+if (( DRYRUN )); then
+  echo "Dry-run: would run -> sudo pacman ${PACMAN_OPTS[*]} ${pkgs[*]}"
+else
+  echo "Installing with pacman..."
+  sudo pacman "${PACMAN_OPTS[@]}" "${pkgs[@]}"
+fi
+
+if (( CLEAN )); then
+  echo "Cleaning build artifacts..."
+  artifacts=(
+    ./*.pkg.tar.zst
+    ./*.pkg.tar.zst.sig
+    ./*.tar.xz
+    ./*.tar.gz
+    ./*.tar.bz2
+    ./*.tar.zst
+    ./*.tgz
+    ./*.tbz2
+    ./*.txz
+    ./*.zip
+    ./*.sig
+    ./*.log
+    ./pkg
+    ./src
+  )
+  if (( DRYRUN )); then
+    echo "Dry-run would remove:"
+    for a in "${artifacts[@]}"; do [[ -e "$a" ]] && echo "  - $a"; done
+  else
+    rm -rf "${artifacts[@]}" 2>/dev/null || true
+  fi
+else
+  echo "Skipping cleanup (-k)."
+fi
+
+echo "Done."
+

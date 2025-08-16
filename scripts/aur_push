@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# harrietobrien
+
+set -euo pipefail
+
+DRYRUN=0
+while getopts ':n' opt; do
+  case "$opt" in
+    n) DRYRUN=1 ;;
+    *) echo "Usage: $0 [-n]"; exit 2 ;;
+  esac
+done
+
+# generate .SRCINFO
+if (( DRYRUN )); then
+  echo "makepkg --printsrcinfo > .SRCINFO"
+else
+  makepkg --printsrcinfo > .SRCINFO
+fi
+[[ -s .SRCINFO ]] || { echo "ERROR: .SRCINFO missing/empty"; exit 1; }
+
+# extract names + version from pkgbase
+mapfile -t NAMES < <(awk -F' = ' '/^[[:space:]]*pkgname = /{print $2}' .SRCINFO)
+[[ ${#NAMES[@]} -gt 0 ]] || { echo "ERROR: no pkgname in .SRCINFO"; exit 1; }
+
+PKGBASE="$(awk -F' = ' '/^pkgbase = /{print $2; exit}' .SRCINFO)"
+[[ -n "${PKGBASE:-}" ]] || { echo "ERROR: pkgbase not found"; exit 1; }
+
+PKGVER="$(awk -F' = ' '
+  /^pkgbase = /{inb=1; next}
+  /^[[:space:]]*pkgname = /{inb=0}
+  inb && /^[[:space:]]*pkgver = /{print $2; exit}
+' .SRCINFO)"
+[[ -n "${PKGVER:-}" ]] || { echo "ERROR: pkgver not found under pkgbase"; exit 1; }
+
+PKGREL="$(awk -F' = ' '
+  /^pkgbase = /{inb=1; next}
+  /^[[:space:]]*pkgname = /{inb=0}
+  inb && /^[[:space:]]*pkgrel = /{print $2; exit}
+' .SRCINFO)"
+
+# commit message
+commit_names="${NAMES[0]}"
+if (( ${#NAMES[@]} > 1 )); then
+  for ((i=1; i<${#NAMES[@]}; i++)); do commit_names+=", ${NAMES[$i]}"; done
+fi
+version_block="$PKGVER"; [[ -n "${PKGREL:-}" ]] && version_block="${PKGVER}-${PKGREL}"
+COMMIT_MSG="${commit_names}: ${version_block}"
+
+# find /  add an AUR remote
+AUR_URL="ssh://aur@aur.archlinux.org/${PKGBASE}.git"
+AUR_REMOTE=""
+
+# search existing remotes for an AUR url
+while read -r name url _; do
+  [[ "$url" == *aur.archlinux.org* ]] && { AUR_REMOTE="$name"; break; }
+done < <(git remote -v)
+
+if [[ -z "$AUR_REMOTE" ]]; then
+  # no AUR remote yet; add one named 'aur' (don’t touch gh origin)
+  AUR_REMOTE="aur"
+  echo "Adding AUR remote: $AUR_REMOTE -> $AUR_URL"
+  if (( DRYRUN )); then
+    echo "git remote add $AUR_REMOTE $AUR_URL"
+  else
+    git remote add "$AUR_REMOTE" "$AUR_URL"
+  fi
+else
+  echo "Using existing AUR remote: $AUR_REMOTE"
+fi
+
+#  warn if directory name != pkgbase
+dirbase="$(basename "$PWD")"
+if [[ "$dirbase" != "$PKGBASE" ]]; then
+  echo "Directory name ($dirbase) != pkgbase ($PKGBASE). Proceeding anyway."
+fi
+
+# commit & push to the AUR remote (not to gh)
+echo "Commit: $COMMIT_MSG"
+if (( DRYRUN )); then
+  echo "git add PKGBUILD .SRCINFO"
+  echo "git diff --cached --quiet || git commit -m \"$COMMIT_MSG\""
+  echo "git push $AUR_REMOTE HEAD:master"
+  exit 0
+fi
+
+git add PKGBUILD .SRCINFO
+if git diff --cached --quiet; then
+  echo "No changes to commit."
+  # still allow pushing if you only updated remote metadata
+  git push "$AUR_REMOTE" HEAD:master || true
+  exit 0
+fi
+
+git commit -m "$COMMIT_MSG"
+git push "$AUR_REMOTE" HEAD:master
+echo "Pushed to AUR ($AUR_REMOTE): $COMMIT_MSG"
+
