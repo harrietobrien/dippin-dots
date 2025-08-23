@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# harrietobrien
+
+set -euo pipefail
+
+FREQ=45 # seconds
+LOCKFILE="/tmp/ac-mouse-jiggler.lock"
+
+# single instance guard
+exec 9>"$LOCKFILE"
+flock -n 9 || { echo "Already running."; exit 0; }
+
+# detect AC power
+detect_acps() {
+  # prefer kernel power_supply interface
+  for p in /sys/class/power_supply/*; do
+    [[ -f "$p/type" && -f "$p/online" ]] || continue
+    if [[ "$(cat "$p/type")" == "Mains" && "$(cat "$p/online")" == "1" ]]; then
+      return 0
+    fi
+  done 2>/dev/null
+  # fallback to upower if present
+  if command -v upower >/dev/null 2>&1; then
+    local dev
+    dev="$(upower -e | grep -Ei 'line_power|ac' | head -n1 || true)"
+    if [[ -n "${dev:-}" ]]; then
+      local online
+      online="$(upower -i "$dev" | awk -F: '/online/{gsub(/ /,"");print tolower($2)}')"
+      [[ "$online" == "yes" || "$online" == "true" || "$online" == "1" ]] && return 0
+    fi
+  fi
+  return 1
+}
+
+# choose jiggler backend
+JIGGLE_BACKEND=""
+if [[ "${XDG_SESSION_TYPE:-}" == "x11" ]] && command -v xdotool >/dev/null 2>&1; then
+  JIGGLE_BACKEND="xdotool"
+elif command -v ydotool >/dev/null 2>&1; then
+  # ydotool requires uinput access (often root or uinput group)
+  JIGGLE_BACKEND="ydotool"
+fi
+
+jiggle()
+  case "$JIGGLE_BACKEND" in
+    xdotool)
+      xdotool mousemove_relative -- 1 0
+      sleep 0.05
+      xdotool mousemove_relative -- -1 0
+      ;;
+    ydotool)
+      ydotool mousemove -x 1
+      sleep 0.05
+      ydotool mousemove -x -1
+      ;;
+    *)
+      # otherwise: maintain a systemd idle inhibitor heartbeat
+      systemd-inhibit --what=idle --who="jiggle" --why="on AC power" \
+        bash -c "sleep $FREQ"
+      ;;
+  esac
+
+echo "Jiggling started. Backend: ${JIGGLE_BACKEND:-inhibitor}"
+
+while true; do
+  if detect_acps; then
+    jiggle
+  else
+    # on battery: let power saving work
+    sleep "$FREQ"
+  fi
+done
+

@@ -1,0 +1,67 @@
+# harrietobrien
+# ~/.bashrc
+
+[[ $- != *i* ]] && return
+[[ -t 1 ]] || return
+
+if [[ -z ${FETCH_SHOWN:-} ]]; then
+  if command -v neofetch >/dev/null 2>&1; then
+    neofetch
+  elif command -v fastfetch >/dev/null 2>&1; then
+    fastfetch
+  fi
+  export FETCH_SHOWN=1
+fi
+
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias mnt="mount | \
+    awk -F' ' '{ printf \"%s\t%s\n\",\$1,\$3; }' | \
+    column -t | grep -E ^/dev/ | sort"
+
+path_electron='/usr/lib/electron33/electron'
+path_onenote='/usr/local/bin/onenote-2024.10.121'
+if [[ -e  $path_electron && -e $path_onenote ]]; then
+    alias onote="${path_electron} ${path_onenote} &> /dev/null"
+fi
+
+path_profex='/usr/local/bin/Profex5/profex.sh'
+if [[ -e $profex ]]; then
+    alias profex="${path_profex} &> /dev/null"
+fi
+
+# ANSI escape codes for  xterm-256 color indices
+# tput executed in non-interactive contexts
+
+# _164=$(tput setaf 164)    # magenta
+_164="\033[38;5;164m"       # color index 164
+# _034=$(tput setaf 34)     # limegreen
+_034="\033[38;5;34m"        # color index 034
+# _161=$(tput setaf 161)    # hotpink
+_161="\033[38;5;161m"       # color index 161
+# _183=$(tput setaf 183)    # lightviolet
+_183="\033[38;5;183m"       # color index 183
+# _148=$(tput setaf 148)    # yellowgreen
+_148="\033[38;5;148m"       # color index 148
+# reset=$(tput sgr0)	    # reset color
+reset="\033[0m"
+
+export PS1="${_164}✿ ${_034}\u${_161}@${_183}\h ${_148}[\w] ${reset}$ "
+
+source /opt/anaconda/etc/profile.d/conda.sh
+conda activate base >/dev/null 2>&1 || true
+export PATH="/home/harriet/dippin-dots/scripts:$PATH"
+
+: << COMM
+source ~/.bashrc after conda init can cause recursive loop:
+-- .bashrc runs conda init block executing eval "$__conda_setup"
+-- triggering .bashrc recursively in the conda init block.
+-- While not executed, the presence of self-sourcing afterwards
+-- amplifies recursion that can cause stack overflow.
+COMM
+
+if [[ -z "$BASHRC_SOURCED" && -n "$PS1" ]]; then
+    # env var is visible to subshells
+    export BASHRC_SOURCED=1
+    source ~/.bashrc
+fi

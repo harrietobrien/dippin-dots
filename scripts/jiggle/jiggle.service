@@ -1,0 +1,15 @@
+[Unit]
+Description=Mouse Jiggler (only on AC power)
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/test -x /home/harriet/dippin-dots/scripts/jiggle/jiggle
+ExecStart=/usr/bin/bash /home/harriet/dippin-dots/scripts/jiggle/jiggle
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+
