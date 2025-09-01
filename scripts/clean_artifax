@@ -1,4 +1,4 @@
-#!/usr/bin/ bash
+#!/usr/bin/bash
 # harriet@archlinux ✿
 # Options:
 #   -n  dry-run (show what would happen; w/o install or clean)
@@ -55,6 +55,7 @@ if (( CLEAN )); then
     ./*.zip
     ./*.sig
     ./*.log
+    ./*.oxt
     ./pkg
     ./src
   )

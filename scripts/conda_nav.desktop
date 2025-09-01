@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Anaconda Navigator (Wayland-safe)
-Comment=Launch Anaconda Navigator via XWayland from user env
-Exec=/home/harriet/dippin-dots/scripts/conda_wrapper
-Icon=/opt/anaconda/lib/python3.13/site-packages/anaconda_navigator/static/images/common/anaconda-icon-256x256.png
-Terminal=false
-Categories=Development;Science;
-StartupWMClass=Navigator
