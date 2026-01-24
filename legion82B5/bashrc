@@ -30,6 +30,17 @@ if [[ -e $profex ]]; then
     alias profex="${path_profex} &> /dev/null"
 fi
 
+path_libreoffice='/usr/bin/libreoffice'
+if [[ -e $path_libreoffice ]]; then
+    alias lopdf="${path_libreoffice} --headless --convert-to pdf"
+fi
+
+path_killviv="/$HOME/dippin-dots/scripts/killviv.sh"
+if [[ -e $path_killviv ]]; then
+    alias killviv="${path_killviv}"
+fi
+
+
 # ANSI escape codes for  xterm-256 color indices
 # tput executed in non-interactive contexts
 
@@ -46,10 +57,10 @@ _148="\033[38;5;148m"       # color index 148
 # reset=$(tput sgr0)	    # reset color
 reset="\033[0m"
 
-export PS1="${_164}✿ ${_034}\u${_161}@${_183}\h ${_148}[\w] ${reset}$ "
+export PS1="\[${_164}\]✿ \[${_034}\]\u\[${_161}\]@\[${_183}\]\h \[${_148}\][\w] \[${reset}\]$ "
 
-source /opt/anaconda/etc/profile.d/conda.sh
-conda activate base >/dev/null 2>&1 || true
+# source /opt/anaconda/etc/profile.d/conda.sh
+# conda activate base >/dev/null 2>&1 || true
 export PATH="/home/harriet/dippin-dots/scripts:$PATH"
 
 : << COMM
@@ -65,3 +76,23 @@ if [[ -z "$BASHRC_SOURCED" && -n "$PS1" ]]; then
     export BASHRC_SOURCED=1
     source ~/.bashrc
 fi
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/harrie/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/harrie/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/harrie/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/harrie/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+export PATH="$HOME/.ghcup/bin:$PATH"
+export PATH="/opt/cuda/bin:$PATH"
+export LD_LIBRARY_PATH="/opt/cuda/lib64:$LD_LIBRARY_PATH"
+export PATH="/opt/cellranger/bin:$PATH"
